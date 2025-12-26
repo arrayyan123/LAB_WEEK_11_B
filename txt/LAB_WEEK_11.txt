@@ -1,0 +1,87 @@
+1. When a user takes a picture, that picture is stored in a path based on the given URI. In which part of the code handles this?
+
+Jawaban:
+
+Bagian kode yang menangani pembuatan path dan URI untuk gambar terdapat dalam file ProviderFileManager.kt pada fungsi generatePhotoUri():
+fun generatePhotoUri(time: Long): FileInfo {
+    val name = "img_$time.jpg"
+    val file = File(
+        context.getExternalFilesDir(fileHelper.getPicturesFolder()),
+        name
+    )
+    return FileInfo(
+        fileHelper.getUriFromFile(file),
+        file,
+        name,
+        fileHelper.getPicturesFolder(),
+        "image/jpeg"
+    )
+}
+
+Dan untuk video dalam fungsi generateVideoUri():
+fun generateVideoUri(time: Long): FileInfo {
+    val name = "video_$time.mp4"
+    val file = File(
+        context.getExternalFilesDir(fileHelper.getVideosFolder()),
+        name
+    )
+    return FileInfo(
+        fileHelper.getUriFromFile(file),
+        file,
+        name,
+        fileHelper.getVideosFolder(),
+        "video/mp4"
+    )
+}
+
+2. In your FileInfo.kt, there are 5 attributes. On the first attribute, what does the URI refer to? And on the fourth attribute, what does relativePath refer to?
+
+Jawaban:
+
+First attribute (uri):
+URI mengacu pada Uniform Resource Identifier yang memberikan akses sementara ke file. URI ini di-generate menggunakan FileProvider dan digunakan untuk membagikan file dengan aplikasi kamera secara aman. URI ini bersifat temporary dan hanya bisa diakses oleh aplikasi yang diizinkan.
+
+Fourth attribute (relativePath):
+relativePath mengacu pada path relatif di dalam external storage dimana file akan disimpan. Nilainya diambil dari file_provider_paths.xml:
+- Untuk gambar: Environment.DIRECTORY_PICTURES (Android/data/com.example.lab_week_11_b/files/Pictures)
+- Untuk video: Environment.DIRECTORY_MOVIES (Android/data/com.example.lab_week_11_b/files/Movies)
+
+3. [Bonus] Explain the chronological order from when a user takes a picture until the file is stored in the MediaStore.
+Jawaban:
+
+Urutan kronologis penyimpanan gambar ke MediaStore:
+a. User Action: User menekan tombol "Photo" di aplikasi
+
+b. Permission Check: Aplikasi memeriksa permission CAMERA dan WRITE_EXTERNAL_STORAGE (untuk Android < 10)
+
+c. File Preparation:
+   - ProviderFileManager.generatePhotoUri() dipanggil
+   - Membuat nama file unik berdasarkan timestamp: img_<timestamp>.jpg
+   - Menentukan path file: Android/data/com.example.lab_week_11_b/files/Pictures/
+   - Generate temporary URI menggunakan FileProvider
+
+d. Camera Launch:
+   - takePictureLauncher.launch(photoInfo.uri) dipanggil
+   - Membuka aplikasi kamera sistem dengan URI temporary
+
+e. Picture Capture: User mengambil foto menggunakan aplikasi kamera
+
+f. File Storage (Temporary):
+   - Kamera menyimpan foto ke path temporary yang ditentukan oleh URI
+   - File disimpan di: Android/data/com.example.lab_week_11_b/files/Pictures/img_<timestamp>.jpg
+
+g. MediaStore Integration:
+   - Setelah foto berhasil diambil, insertImageToStore() dipanggil
+   - ProviderFileManager.insertToStore() menyalin file dari temporary location ke MediaStore
+   - Menggunakan ContentResolver.insert() dengan ContentValues yang berisi metadata
+
+h. Permanent Storage:
+   - File disalin ke MediaStore Images collection
+   - Untuk Android 10+: MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+   - Untuk Android <10: MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+   - File sekarang tersedia di Gallery aplikasi system
+
+i. Cleanup: File temporary dihapus atau dibiarkan (tergantung implementasi FileProvider)
+
+Alur Data:
+User → Permission Check → File Preparation → Camera App → Temporary Storage → MediaStore Copy → Permanent Gallery Storage
